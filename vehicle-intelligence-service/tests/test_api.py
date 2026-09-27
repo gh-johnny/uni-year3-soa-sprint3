@@ -2,13 +2,24 @@ def headers(token, *roles):
     return {"Authorization": f"Bearer {token(*roles)}"}
 
 
+def assert_problem(response, status):
+    assert response.status_code == status
+    assert response.headers["content-type"] == "application/problem+json"
+    body = response.json()
+    assert set(body) == {"type", "title", "status", "detail", "instance"}
+    assert body["type"] == f"https://ford.example/problems/{status}"
+    assert body["status"] == status
+    assert body["title"] and body["detail"]
+    assert body["instance"] == response.request.url.path
+
+
 def test_health_is_public(client):
     assert client.get("/health").json() == {"status": "UP"}
 
 
 def test_telemetry_requires_authentication(client, telemetry):
     response = client.post("/api/v1/telemetry", json=telemetry)
-    assert response.status_code == 401
+    assert_problem(response, 401)
 
 
 def test_invalid_and_expired_tokens_are_rejected(client, telemetry, token):
@@ -21,12 +32,13 @@ def test_invalid_and_expired_tokens_are_rejected(client, telemetry, token):
         headers=headers(token, "VEHICLE")
         | {"Authorization": f"Bearer {token('VEHICLE', expired=True)}"},
     )
-    assert invalid.status_code == expired.status_code == 401
+    assert_problem(invalid, 401)
+    assert_problem(expired, 401)
 
 
 def test_role_is_enforced(client, telemetry, token):
     response = client.post("/api/v1/telemetry", json=telemetry, headers=headers(token, "CUSTOMER"))
-    assert response.status_code == 403
+    assert_problem(response, 403)
 
 
 def test_ingest_and_read_latest_risk(client, telemetry, token):
@@ -49,14 +61,14 @@ def test_evaluate_endpoint_and_validation(client, telemetry, token):
         headers=headers(token, "ADMIN"),
     )
     assert valid.status_code == 200
-    assert invalid.status_code == 422
+    assert_problem(invalid, 422)
 
 
 def test_missing_risk_returns_404(client, token):
     response = client.get(
         "/api/v1/vehicles/1FMCU9GDXMUA99999/risk", headers=headers(token, "ADVISER")
     )
-    assert response.status_code == 404
+    assert_problem(response, 404)
 
 
 def test_unhandled_errors_are_standardized(client, telemetry, token, service):
@@ -65,5 +77,17 @@ def test_unhandled_errors_are_standardized(client, telemetry, token, service):
 
     service.evaluate = fail
     response = client.post("/api/v1/telemetry", json=telemetry, headers=headers(token, "VEHICLE"))
-    assert response.status_code == 500
-    assert response.json()["type"] == "internal_error"
+    assert_problem(response, 500)
+    assert "database unavailable" not in response.json()["detail"]
+
+
+def test_unknown_endpoint_returns_problem_details(client):
+    assert_problem(client.get("/api/v1/missing"), 404)
+
+
+def test_openapi_documents_problem_details(client):
+    operation = client.get("/openapi.json").json()["paths"]["/api/v1/telemetry"]["post"]
+    for status in (401, 403, 422, 500):
+        content = operation["responses"][str(status)]["content"]
+        schema = content["application/problem+json"]["schema"]
+        assert set(schema["required"]) == {"type", "title", "status", "detail", "instance"}

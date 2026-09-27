@@ -2,6 +2,7 @@
 
 up:
 	docker compose up --build -d
+	docker compose restart gateway
 
 down:
 	docker compose down

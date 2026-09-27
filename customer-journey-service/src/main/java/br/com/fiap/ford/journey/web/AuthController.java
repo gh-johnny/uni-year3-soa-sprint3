@@ -2,6 +2,7 @@ package br.com.fiap.ford.journey.web;
 
 import br.com.fiap.ford.journey.security.DemoUserDirectory;
 import br.com.fiap.ford.journey.security.TokenService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -28,6 +29,7 @@ class AuthController {
     }
 
     @PostMapping("/token")
+    @SecurityRequirements
     @ResponseStatus(HttpStatus.CREATED)
     TokenService.Token token(@Valid @RequestBody LoginRequest request) {
         var user = users.authenticate(request.username(), request.password())
@@ -37,4 +39,3 @@ class AuthController {
 
     record LoginRequest(@Email @NotBlank String username, @NotBlank String password) {}
 }
-

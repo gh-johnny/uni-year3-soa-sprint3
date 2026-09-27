@@ -77,7 +77,21 @@ Customer Journey emite JWT HS256 com `iss=ford-zero-touch`, `aud=ford-api`, `sub
 
 Rotas versionadas em `/api/v1`: GET consulta; POST cria recursos ou solicita operações de negócio. Criação de jornada/ordem retorna 201 com `Location`; recebimento de dados retorna 202; consultas e transições retornam 200. Sem autenticação: 401; role insuficiente: 403; recurso ausente: 404. Validação de entrada Java/.NET retorna 400; validação Python e violações de regras de negócio retornam 422.
 
-Java e .NET usam Problem Details para erros de aplicação. Python usa `detail` para erros HTTP/validação e `type`, `title`, `status` para falhas inesperadas. Handlers centralizam as respostas por serviço; OpenAPI descreve os contratos.
+As três APIs usam Problem Details, com `Content-Type: application/problem+json` e os campos `type`, `title`, `status`, `detail` e `instance`. O mesmo formato cobre autenticação, autorização, validação, recurso ausente e falhas inesperadas. O campo `type` segue `https://ford.example/problems/{status}`; `instance` indica a rota local do serviço, sem o prefixo do gateway. Mensagens de negócio podem variar entre serviços, mantendo esse contrato. Falhas inesperadas retornam uma mensagem genérica, sem expor detalhes internos.
+
+Exemplo de resposta Java sem token:
+
+```json
+{
+  "type": "https://ford.example/problems/401",
+  "title": "Unauthorized",
+  "status": 401,
+  "detail": "A valid bearer token is required.",
+  "instance": "/api/v1/journeys"
+}
+```
+
+O Swagger Java declara o login com `security: []`, enquanto os recursos protegidos herdam a exigência de Bearer JWT. Os testes conferem essa distinção. A API Python também documenta o schema de Problem Details para seus erros.
 
 ## Padrões e fontes
 

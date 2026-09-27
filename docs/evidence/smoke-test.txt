@@ -1,0 +1,24 @@
+PASS health journey
+PASS health intelligence
+PASS health workshop
+PASS authentication profiles
+PASS Problem Details 401 GET /journey/api/v1/journeys/00000000-0000-0000-0000-000000000000
+PASS Problem Details 401 GET /intelligence/api/v1/vehicles/1FMCU9GDXMUA99999/risk
+PASS Problem Details 401 GET /workshop/api/v1/work-orders/00000000-0000-0000-0000-000000000000
+PASS create journey 0d03cf25-958b-438f-9972-a032d799571c
+PASS ingest telemetry and classify risk
+PASS cross-service recommendation with JWT
+PASS customer reads recommended journey
+PASS create prioritized work order 37b7068e-dcf1-4fd0-99b1-49cf90eaddcc
+PASS transition work order
+PASS Problem Details 403 POST /journey/api/v1/journeys
+PASS Problem Details 403 POST /intelligence/api/v1/telemetry
+PASS Problem Details 403 POST /workshop/api/v1/work-orders
+PASS Problem Details 400 POST /journey/api/v1/journeys
+PASS Problem Details 422 POST /intelligence/api/v1/telemetry
+PASS Problem Details 400 POST /workshop/api/v1/work-orders
+PASS Problem Details 404 GET /journey/api/v1/journeys/00000000-0000-0000-0000-000000000000
+PASS Problem Details 404 GET /intelligence/api/v1/vehicles/1FN22998175257286/risk
+PASS Problem Details 404 GET /workshop/api/v1/work-orders/00000000-0000-0000-0000-000000000000
+PASS OpenAPI for all services
+ALL SMOKE TESTS PASSED

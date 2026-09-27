@@ -19,7 +19,7 @@ dotnet restore Ford.Workshop.sln
 dotnet run --project src/Ford.Workshop.Api
 ```
 
-Swagger: http://localhost:5000/swagger. Health: `/health`. Recursos `/api/v1/work-orders` exigem JWT emitido por Customer Journey. ADVISER/ADMIN criam ordens; TECHNICIAN/ADMIN avançam estados; CUSTOMER também consulta. Erros de aplicação usam Problem Details.
+Swagger: http://localhost:5000/swagger. Health: `/health`. Recursos `/api/v1/work-orders` exigem JWT emitido por Customer Journey. ADVISER/ADMIN criam ordens; TECHNICIAN/ADMIN avançam estados; CUSTOMER também consulta. Erros usam `application/problem+json`, com `type`, `title`, `status`, `detail` e `instance`, inclusive respostas 401/403 e erros de entrada.
 
 ## Testes
 
@@ -27,4 +27,4 @@ Swagger: http://localhost:5000/swagger. Health: `/health`. Recursos `/api/v1/wor
 dotnet test Ford.Workshop.sln -c Release
 ```
 
-Cenários de prioridade, transição, criação e consulta. Resultado no terminal; cobertura em `tests/Ford.Workshop.Tests/coverage.cobertura.xml`. Na raiz, `./scripts/smoke-test.sh` verifica autenticação, criação e transição pela API. Fontes: `src/`, `tests/` e `appsettings.json` no projeto API.
+Cenários de prioridade, transição, criação e consulta, além de testes HTTP com `WebApplicationFactory`. O servidor de testes mantém controllers, autenticação JWT e o repository EF Core; somente o banco muda para SQLite em memória. Os cenários verificam endpoints públicos, permissões por role, JWT inválido/expirado, criação/leitura/transição persistida, entradas inválidas e respostas 400/401/403/404/415/422/500. Resultado no terminal; cobertura em `tests/Ford.Workshop.Tests/coverage.cobertura.xml`. Na raiz, `./scripts/smoke-test.sh` verifica integração com PostgreSQL e o gateway. Fontes: `src/`, `tests/` e `appsettings.json` no projeto API.

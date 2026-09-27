@@ -56,7 +56,9 @@ make test
 make smoke
 ```
 
-As suítes verificam regras de negócio, transições, entradas inválidas, autenticação, autorização e erros. Java gera resultados em `customer-journey-service/build/reports/tests/test/index.html`; Python e .NET exibem resultados no terminal. READMEs dos serviços detalham cobertura e execução individual. `make verify` executa testes, sobe os serviços e verifica a integração.
+As suítes verificam regras de negócio, transições, entradas inválidas, autenticação, autorização e erros. A oficina inclui testes HTTP com JWT real e SQLite em memória. Java gera resultados em `customer-journey-service/build/reports/tests/test/index.html`; Python e .NET exibem resultados no terminal. READMEs dos serviços detalham cobertura e execução individual. `make verify` executa testes, sobe os serviços, reinicia o gateway para atualizar os endereços dos containers e verifica a integração.
+
+As três APIs retornam erros em Problem Details: `application/problem+json`, com `type`, `title`, `status`, `detail` e `instance`. O smoke confere esse contrato para 401, 403, validação e 404 nas três APIs. Resultados e evidências da execução estão em [Validação de SOA](docs/TEST-RESULTS.md).
 
 ## Documentação
 

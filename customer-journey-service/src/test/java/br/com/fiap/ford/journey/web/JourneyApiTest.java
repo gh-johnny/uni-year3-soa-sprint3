@@ -10,9 +10,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import br.com.fiap.ford.journey.application.IntelligencePort;
 import br.com.fiap.ford.journey.infra.IntelligenceUnavailableException;
+import br.com.fiap.ford.journey.security.TokenService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class JourneyApiTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
+    @Autowired TokenService tokens;
     @MockitoBean IntelligencePort intelligence;
 
     @Test
@@ -37,10 +41,14 @@ class JourneyApiTest {
         String payload = "{\"customerId\":\"" + customerId + "\",\"vin\":\"1FMCU9GDXMUA12345\"}";
 
         mvc.perform(post("/api/v1/journeys").contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.instance").value("/api/v1/journeys"));
         mvc.perform(post("/api/v1/journeys").header("Authorization", "Bearer " + customer)
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.type").value("https://ford.example/problems/403"));
 
         String response = mvc.perform(post("/api/v1/journeys").header("Authorization", "Bearer " + admin)
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
@@ -99,9 +107,63 @@ class JourneyApiTest {
     void rejectsBadCredentialsAndMalformedLogin() throws Exception {
         mvc.perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"admin@ford.com\",\"password\":\"bad\"}"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.detail").value("invalid credentials"));
         mvc.perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void invalidAndExpiredTokensReturnProblemDetails() throws Exception {
+        String expired = tokens.issue("admin@ford.com", Set.of("ADMIN"), Instant.now().minusSeconds(7200))
+                .accessToken();
+        for (String token : List.of("not-a-jwt", expired)) {
+            mvc.perform(get("/api/v1/journeys/{id}", UUID.randomUUID())
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(header().string("Content-Type", MediaType.APPLICATION_PROBLEM_JSON_VALUE))
+                    .andExpect(header().exists("WWW-Authenticate"))
+                    .andExpect(jsonPath("$.type").value("https://ford.example/problems/401"))
+                    .andExpect(jsonPath("$.title").isNotEmpty())
+                    .andExpect(jsonPath("$.detail").isNotEmpty());
+        }
+    }
+
+    @Test
+    void openApiDocumentsLoginAsPublicAndKeepsProtectedResourcesSecured() throws Exception {
+        mvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/token'].post.security").isEmpty())
+                .andExpect(jsonPath("$.security[0].bearerAuth").isArray());
+    }
+
+    @Test
+    void frameworkErrorsUseTheSameProblemDetailsContract() throws Exception {
+        String admin = token("admin@ford.com");
+        mvc.perform(post("/api/v1/journeys").header("Authorization", "Bearer " + admin)
+                        .contentType(MediaType.APPLICATION_JSON).content("{"))
+                .andExpect(status().isBadRequest())
+                .andExpect(header().string("Content-Type", MediaType.APPLICATION_PROBLEM_JSON_VALUE))
+                .andExpect(jsonPath("$.type").value("https://ford.example/problems/400"))
+                .andExpect(jsonPath("$.instance").value("/api/v1/journeys"));
+        mvc.perform(get("/api/v1/missing").header("Authorization", "Bearer " + admin))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.type").value("https://ford.example/problems/404"))
+                .andExpect(jsonPath("$.instance").value("/api/v1/missing"));
+    }
+
+    @Test
+    void unexpectedFailuresDoNotLeakInternalDetails() throws Exception {
+        String admin = token("admin@ford.com");
+        UUID id = createJourney(admin, "1FMCU9GDXMUA88888");
+        when(intelligence.evaluate(any())).thenThrow(new IllegalStateException("private database connection"));
+        mvc.perform(post("/api/v1/journeys/{id}/recommendation", id)
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(MediaType.APPLICATION_JSON).content(telemetry("1FMCU9GDXMUA88888")))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.type").value("https://ford.example/problems/500"))
+                .andExpect(jsonPath("$.detail").value("An unexpected error occurred."));
     }
 
     private String token(String user) throws Exception {
@@ -125,4 +187,3 @@ class JourneyApiTest {
                 + "\"batteryVoltage\":12,\"engineTemperatureC\":100,\"diagnosticCodes\":[]}";
     }
 }
-

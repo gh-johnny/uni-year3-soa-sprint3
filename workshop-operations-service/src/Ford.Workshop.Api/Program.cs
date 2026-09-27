@@ -4,6 +4,8 @@ using Ford.Workshop.Api.Application;
 using Ford.Workshop.Api.Infrastructure;
 using Ford.Workshop.Api.Web;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -12,7 +14,21 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddJsonConsole();
 builder.Services.AddControllers().AddJsonOptions(options =>
-    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()))
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.SuppressMapClientErrors = true;
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var detail = string.Join("; ", context.ModelState.Values.SelectMany(value => value.Errors)
+                .Select(error => string.IsNullOrEmpty(error.ErrorMessage) ? "Invalid request body." : error.ErrorMessage));
+            return new ObjectResult(ApiProblems.Create(context.HttpContext, 400, "Invalid request", detail))
+            {
+                StatusCode = 400,
+                ContentTypes = { "application/problem+json" }
+            };
+        };
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -64,6 +80,12 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 app.UseExceptionHandler();
+app.UseStatusCodePages(context =>
+{
+    var status = context.HttpContext.Response.StatusCode;
+    var title = ReasonPhrases.GetReasonPhrase(status);
+    return ApiProblems.WriteAsync(context.HttpContext, status, title, title);
+});
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseAuthentication();

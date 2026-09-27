@@ -19,7 +19,7 @@ uv sync --all-groups
 uv run uvicorn ford_intelligence.main:app --app-dir src --reload
 ```
 
-Swagger: http://localhost:8000/docs. Health: `/health`. Operações `/api/v1/telemetry`, `/api/v1/recommendations/evaluate` e `/api/v1/vehicles/{vin}/risk` exigem JWT e roles. Customer Journey emite o token compartilhado. Erros HTTP/validação usam `detail`; falhas inesperadas usam `type`, `title`, `status`.
+Swagger: http://localhost:8000/docs. Health: `/health`. Operações `/api/v1/telemetry`, `/api/v1/recommendations/evaluate` e `/api/v1/vehicles/{vin}/risk` exigem JWT e roles. Customer Journey emite o token compartilhado. Erros usam `application/problem+json`, com `type`, `title`, `status`, `detail` e `instance`, incluindo 401/403 e validação. Falhas inesperadas não expõem a mensagem interna da exceção.
 
 ## Testes
 

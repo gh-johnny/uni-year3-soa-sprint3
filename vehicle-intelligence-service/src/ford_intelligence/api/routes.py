@@ -1,10 +1,22 @@
+from http import HTTPStatus
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from ford_intelligence.api.problems import ProblemDetails
 from ford_intelligence.application.services import IntelligenceService
 from ford_intelligence.domain.models import Recommendation, TelemetryInput
 from ford_intelligence.security import Principal, require_roles
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(
+    prefix="/api/v1",
+    responses={
+        code: {
+            "description": HTTPStatus(code).phrase,
+            "content": {"application/problem+json": {"schema": ProblemDetails.model_json_schema()}},
+        }
+        for code in (401, 403, 404, 422, 500)
+    },
+)
 
 
 def get_service(request: Request) -> IntelligenceService:
