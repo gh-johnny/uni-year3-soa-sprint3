@@ -18,6 +18,8 @@ class SecurityComponentsTest {
     void directoryAuthenticatesKnownUsersCaseInsensitively() {
         DemoUserDirectory directory = new DemoUserDirectory(new BCryptPasswordEncoder(4));
         assertThat(directory.authenticate("ADMIN@FORD.COM", "Ford@123")).isPresent();
+        assertThat(directory.authenticate("technician@ford.com", "Ford@123").orElseThrow().roles())
+                .containsExactly("TECHNICIAN");
         assertThat(directory.authenticate("missing@ford.com", "Ford@123")).isEmpty();
         assertThat(directory.authenticate("admin@ford.com", "wrong")).isEmpty();
     }
@@ -38,4 +40,3 @@ class SecurityComponentsTest {
         assertThat(token.expiresIn()).isEqualTo(1800);
     }
 }
-

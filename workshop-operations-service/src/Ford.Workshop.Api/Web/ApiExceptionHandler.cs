@@ -11,6 +11,7 @@ public sealed class ApiExceptionHandler : IExceptionHandler
         var (status, title) = exception switch
         {
             WorkOrderNotFoundException => (StatusCodes.Status404NotFound, "Work order not found"),
+            WorkOrderConflictException => (StatusCodes.Status409Conflict, "Work order conflict"),
             DomainException => (StatusCodes.Status422UnprocessableEntity, "Business rule violation"),
             _ => (StatusCodes.Status500InternalServerError, "Unexpected error")
         };

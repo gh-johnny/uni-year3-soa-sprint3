@@ -34,18 +34,18 @@ Requisitos: Docker Compose; Bash, curl e jq para o smoke test.
 
 ```bash
 cp .env.example .env
-docker compose up --build -d
+make up
 docker compose ps
 ./scripts/smoke-test.sh
 ```
 
-Resultado esperado: `ALL SMOKE TESTS PASSED`. O script cria dados e verifica autenticação, acesso sem token, jornada, recomendação entre serviços, ordem e OpenAPI. Para parar preservando os dados: `docker compose down`.
+Resultado esperado: `ALL SMOKE TESTS PASSED`. O script usa os perfis de veículo, consultor, técnico e cliente para concluir jornada e ordem, usando o risco retornado pela integração Java → Python. Confere persistência, atualização do cache, transições rejeitadas, erros e OpenAPI pelo gateway. Para parar preservando os dados: `docker compose down`.
 
 ## Autenticação
 
 Obter JWT via `POST /journey/api/v1/auth/token` no gateway, com JSON `{"username":"admin@ford.com","password":"Ford@123"}`. Enviar `Authorization: Bearer <accessToken>` nas operações protegidas ou usar **Authorize** no Swagger. O token HS256 expira em uma hora; login, health e documentação são públicos.
 
-Usuários de demonstração: `admin@ford.com` (ADMIN), `adviser@ford.com` (ADVISER), `customer@ford.com` (CUSTOMER) e `vehicle@ford.com` (VEHICLE). Todos usam a senha local `Ford@123`. Credenciais e segredo de exemplo são locais à POC.
+Usuários de demonstração: `admin@ford.com` (ADMIN), `adviser@ford.com` (ADVISER), `customer@ford.com` (CUSTOMER), `technician@ford.com` (TECHNICIAN) e `vehicle@ford.com` (VEHICLE). Todos usam a senha local `Ford@123`. Credenciais e segredo de exemplo são locais à POC.
 
 ## Testes
 
@@ -56,7 +56,9 @@ make test
 make smoke
 ```
 
-As suítes verificam regras de negócio, transições, entradas inválidas, autenticação, autorização e erros. A oficina inclui testes HTTP com JWT real e SQLite em memória. Java gera resultados em `customer-journey-service/build/reports/tests/test/index.html`; Python e .NET exibem resultados no terminal. READMEs dos serviços detalham cobertura e execução individual. `make verify` executa testes, sobe os serviços, reinicia o gateway para atualizar os endereços dos containers e verifica a integração.
+As suítes verificam regras de negócio, transições, entradas inválidas, autenticação, autorização e erros. A oficina inclui testes HTTP com JWT real e SQLite em memória. Java gera resultados em `customer-journey-service/build/reports/tests/test/index.html`; Python e .NET exibem resultados no terminal. READMEs dos serviços detalham cobertura e execução individual. `make verify` executa em sequência testes, build/health, E2E completo e resiliência, inclusive quando chamado com `make -j`.
+
+`make resilience` testa a stack Docker local: para temporariamente o container Python, confere 503 e preservação da jornada, restaura o serviço e confirma a recuperação. O script também tenta restaurar Python e gateway ao sair por erro ou interrupção; detalhes em [Demonstração](docs/DEMO-RUNBOOK.md).
 
 As três APIs retornam erros em Problem Details: `application/problem+json`, com `type`, `title`, `status`, `detail` e `instance`. O smoke confere esse contrato para 401, 403, validação e 404 nas três APIs. Resultados e evidências da execução estão em [Validação de SOA](docs/TEST-RESULTS.md).
 

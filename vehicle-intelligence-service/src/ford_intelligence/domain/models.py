@@ -23,8 +23,8 @@ class TelemetryInput(BaseModel):
 
     @field_validator("vin", mode="before")
     @classmethod
-    def normalize_vin(cls, value: str) -> str:
-        return value.upper()
+    def normalize_vin(cls, value: object) -> object:
+        return value.upper() if isinstance(value, str) else value
 
 
 @dataclass(frozen=True, slots=True)

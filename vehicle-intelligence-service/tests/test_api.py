@@ -1,3 +1,6 @@
+import pytest
+
+
 def headers(token, *roles):
     return {"Authorization": f"Bearer {token(*roles)}"}
 
@@ -62,6 +65,15 @@ def test_evaluate_endpoint_and_validation(client, telemetry, token):
     )
     assert valid.status_code == 200
     assert_problem(invalid, 422)
+
+
+@pytest.mark.parametrize("vin", [None, 123, [], {}])
+@pytest.mark.parametrize("path", ["/api/v1/telemetry", "/api/v1/recommendations/evaluate"])
+def test_non_string_vin_returns_validation_error(client, telemetry, token, vin, path):
+    response = client.post(
+        path, json=telemetry | {"vin": vin}, headers=headers(token, "ADMIN")
+    )
+    assert_problem(response, 422)
 
 
 def test_missing_risk_returns_404(client, token):

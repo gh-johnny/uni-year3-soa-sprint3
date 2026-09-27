@@ -2,6 +2,7 @@ package br.com.fiap.ford.journey.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -18,10 +19,18 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -31,6 +40,7 @@ class JourneyApiTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
     @Autowired TokenService tokens;
+    @Autowired JwtEncoder encoder;
     @MockitoBean IntelligencePort intelligence;
 
     @Test
@@ -128,6 +138,44 @@ class JourneyApiTest {
                     .andExpect(jsonPath("$.title").isNotEmpty())
                     .andExpect(jsonPath("$.detail").isNotEmpty());
         }
+    }
+
+    @ParameterizedTest
+    @CsvSource({"wrong,ford-api", "ford-zero-touch,wrong", "missing,ford-api", "ford-zero-touch,missing"})
+    void rejectsWrongOrMissingIssuerAndAudience(String issuer, String audience) throws Exception {
+        var claims = JwtClaimsSet.builder().subject("admin@ford.com")
+                .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(300))
+                .claim("roles", List.of("ADMIN"));
+        if (!issuer.equals("missing")) claims.issuer(issuer);
+        if (!audience.equals("missing")) claims.audience(List.of(audience));
+        String token = encoder.encode(JwtEncoderParameters.from(
+                JwsHeader.with(MacAlgorithm.HS256).build(), claims.build())).getTokenValue();
+        mvc.perform(get("/api/v1/journeys/{id}", UUID.randomUUID())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"odometerKm:-1", "odometerKm:2000001", "oilLifePercent:-1",
+            "oilLifePercent:101", "batteryVoltage:-1", "batteryVoltage:31",
+            "engineTemperatureC:-51", "engineTemperatureC:251", "batteryVoltage:null",
+            "diagnosticCodes:[null]"})
+    void invalidTelemetryNeverCallsDependency(String invalidField) throws Exception {
+        String admin = token("admin@ford.com");
+        String vin = "1FM" + UUID.randomUUID().toString().replace("-", "").substring(0, 14).toUpperCase();
+        UUID id = createJourney(admin, vin);
+        String[] parts = invalidField.split(":", 2);
+        var payload = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree(telemetry(vin));
+        payload.set(parts[0], mapper.readTree(parts[1]));
+        mvc.perform(post("/api/v1/journeys/{id}/recommendation", id)
+                        .header("Authorization", "Bearer " + admin)
+                        .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(payload)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400));
+        verifyNoInteractions(intelligence);
+        mvc.perform(get("/api/v1/journeys/{id}", id).header("Authorization", "Bearer " + admin))
+                .andExpect(jsonPath("$.status").value("DETECTED"));
     }
 
     @Test

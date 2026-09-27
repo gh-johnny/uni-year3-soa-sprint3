@@ -18,6 +18,7 @@ public class DemoUserDirectory {
                 "admin@ford.com", new User("admin@ford.com", password, Set.of("ADMIN")),
                 "adviser@ford.com", new User("adviser@ford.com", password, Set.of("ADVISER")),
                 "customer@ford.com", new User("customer@ford.com", password, Set.of("CUSTOMER")),
+                "technician@ford.com", new User("technician@ford.com", password, Set.of("TECHNICIAN")),
                 "vehicle@ford.com", new User("vehicle@ford.com", password, Set.of("VEHICLE")));
     }
 
@@ -28,4 +29,3 @@ public class DemoUserDirectory {
 
     public record User(String username, String passwordHash, Set<String> roles) {}
 }
-

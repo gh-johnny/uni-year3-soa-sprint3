@@ -6,7 +6,9 @@ import br.com.fiap.ford.journey.domain.JourneyStatus;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Size;
 import java.net.URI;
 import java.util.List;
 import java.util.UUID;
@@ -59,11 +61,11 @@ class JourneyController {
     record TransitionRequest(@NotNull JourneyStatus target, @NotBlank String nextAction) {}
     record TelemetryRequest(
             @NotBlank String vin,
-            @PositiveOrZero double odometerKm,
-            double oilLifePercent,
-            double batteryVoltage,
-            double engineTemperatureC,
-            List<String> diagnosticCodes) {
+            @NotNull @DecimalMin("0") @DecimalMax("2000000") Double odometerKm,
+            @NotNull @DecimalMin("0") @DecimalMax("100") Double oilLifePercent,
+            @NotNull @DecimalMin("0") @DecimalMax("30") Double batteryVoltage,
+            @NotNull @DecimalMin("-50") @DecimalMax("250") Double engineTemperatureC,
+            @Size(max = 50) List<@NotNull String> diagnosticCodes) {
         IntelligencePort.TelemetryCommand toCommand() {
             return new IntelligencePort.TelemetryCommand(
                     vin, odometerKm, oilLifePercent, batteryVoltage, engineTemperatureC,
@@ -71,4 +73,3 @@ class JourneyController {
         }
     }
 }
-

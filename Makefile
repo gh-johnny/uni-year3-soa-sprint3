@@ -1,4 +1,4 @@
-.PHONY: up down build test smoke verify logs clean
+.PHONY: up down build test smoke resilience verify logs clean
 
 up:
 	docker compose up --build -d
@@ -18,7 +18,14 @@ test:
 smoke:
 	./scripts/smoke-test.sh
 
-verify: test up smoke
+resilience:
+	./scripts/resilience-test.sh
+
+verify:
+	$(MAKE) test
+	$(MAKE) up
+	$(MAKE) smoke
+	$(MAKE) resilience
 
 logs:
 	docker compose logs -f --tail=200

@@ -183,6 +183,19 @@ public sealed class WorkOrderApiTests(WorkshopApiFactory factory) : IClassFixtur
     }
 
     [Fact]
+    public async Task DuplicateAppointmentReturns409AndPreservesOriginalOrder()
+    {
+        using var client = Client(Token("ADMIN"));
+        var payload = Payload();
+        var created = await client.PostAsJsonAsync("/api/v1/work-orders", payload);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var original = await created.Content.ReadFromJsonAsync<JsonElement>();
+        await AssertProblem(await client.PostAsJsonAsync("/api/v1/work-orders", payload), HttpStatusCode.Conflict);
+        var found = await client.GetFromJsonAsync<JsonElement>($"/api/v1/work-orders/{original.GetProperty("id").GetGuid()}");
+        Assert.Equal(original.GetRawText(), found.GetRawText());
+    }
+
+    [Fact]
     public async Task UnexpectedFailureReturns500WithoutLeakingException()
     {
         var repository = new Mock<IWorkOrderRepository>();

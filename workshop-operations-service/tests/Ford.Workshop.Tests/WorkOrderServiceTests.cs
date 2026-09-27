@@ -29,6 +29,18 @@ public sealed class WorkOrderServiceTests
     }
 
     [Fact]
+    public async Task DuplicateAppointmentDoesNotWriteOrCalculatePriority()
+    {
+        var command = new CreateWorkOrder(Guid.NewGuid(), "1FMCU9GDXMUA12345", "Oil", "HIGH", false);
+        _repository.Setup(item => item.ExistsByAppointmentIdAsync(command.AppointmentId, CancellationToken.None))
+            .ReturnsAsync(true);
+        await Assert.ThrowsAsync<WorkOrderConflictException>(() => _service.CreateAsync(command, CancellationToken.None));
+        _repository.Verify(item => item.AddAsync(It.IsAny<WorkOrder>(), It.IsAny<CancellationToken>()), Times.Never);
+        _repository.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _priority.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task FindsExistingWorkOrder()
     {
         var entity = NewOrder();
@@ -67,4 +79,3 @@ public sealed class WorkOrderServiceTests
         public override DateTimeOffset GetUtcNow() => now;
     }
 }
-

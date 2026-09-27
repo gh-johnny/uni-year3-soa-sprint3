@@ -18,7 +18,7 @@ Execução integrada: `docker compose up --build -d` na raiz. Individualmente, d
 ./gradlew bootRun
 ```
 
-Swagger: http://localhost:8080/swagger-ui.html. Health: `/actuator/health`. Login público: `POST /api/v1/auth/token`. Usuários: `admin@ford.com`, `adviser@ford.com`, `customer@ford.com`, `vehicle@ford.com`; senha local `Ford@123`. Recursos `/api/v1/journeys` exigem JWT e roles. Erros de aplicação usam Problem Details.
+Swagger: http://localhost:8080/swagger-ui.html. Health: `/actuator/health`. Login público: `POST /api/v1/auth/token`. Usuários: `admin@ford.com`, `adviser@ford.com`, `customer@ford.com`, `technician@ford.com`, `vehicle@ford.com`; senha local `Ford@123`. Recursos `/api/v1/journeys` exigem JWT e roles. Assinatura, validade, issuer e audience são verificados. Telemetria inválida retorna 400 antes de chamar Python. Erros de aplicação usam Problem Details.
 
 ## Testes
 
@@ -26,4 +26,4 @@ Swagger: http://localhost:8080/swagger-ui.html. Health: `/actuator/health`. Logi
 ./gradlew test jacocoTestReport
 ```
 
-Cenários de domínio, aplicação, API e segurança. Resultado em `build/reports/tests/test/index.html`; cobertura em `build/reports/jacoco/test/html/index.html`. Na raiz, `./scripts/smoke-test.sh` verifica integração real. Fontes: `src/`, `build.gradle` e `src/main/resources/application.yml`.
+Cenários de domínio, aplicação, API e segurança. O adapter é exercitado contra um servidor HTTP controlado, verificando contrato, propagação do Bearer, limite de três tentativas e estados OPEN/HALF_OPEN/CLOSED do circuit breaker; a espera é reduzida somente nessa suíte. Resultado em `build/reports/tests/test/index.html`; cobertura em `build/reports/jacoco/test/html/index.html`. Na raiz, `make smoke` verifica o fluxo completo e `make resilience` verifica falha e recuperação com o Python real no Docker. Fontes: `src/`, `build.gradle` e `src/main/resources/application.yml`.

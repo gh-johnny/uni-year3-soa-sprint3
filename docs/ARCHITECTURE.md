@@ -58,9 +58,11 @@ sequenceDiagram
 
 Java → Python é a integração síncrona implementada. O cliente cria e acompanha a ordem na API de oficina; a POC não cria essa ordem automaticamente a partir da jornada. O adapter Java possui timeout, retry limitado e circuit breaker; indisponibilidade da API de recomendações retorna 503.
 
+O E2E pelo gateway usa o risco da recomendação para criar a ordem, avança oficina até `Completed` e jornada até `COMPLETED`, conferindo consultas e cache após as mudanças. Um segundo script para o container Python, valida 503 e relê a jornada do PostgreSQL após remover apenas sua entrada de cache; depois restaura Python/gateway e verifica recomendação e persistência. Os testes do adapter usam HTTP real contra um servidor local controlado e conferem três tentativas, bloqueio de chamadas com circuito aberto e recuperação por duas sondagens bem-sucedidas. A janela e a espera são reduzidas nessa suíte para acelerar a execução; o teste Docker usa a configuração da POC.
+
 ## Autenticação e autorização
 
-Customer Journey emite JWT HS256 com `iss=ford-zero-touch`, `aud=ford-api`, `sub`, `roles`, `iat` e `exp` de uma hora. Os serviços usam o mesmo segredo local. Python e .NET verificam issuer e audience; Java valida assinatura e validade temporal. Login, health e Swagger são públicos. A autorização demonstrada é por perfil; consultas não filtram a titularidade do cliente na POC.
+Customer Journey emite JWT HS256 com `iss=ford-zero-touch`, `aud=ford-api`, `sub`, `roles`, `iat` e `exp` de uma hora. Os serviços usam o mesmo segredo local e verificam assinatura, validade temporal, issuer e audience. Login, health e Swagger são públicos. A autorização demonstrada é por perfil; consultas não filtram a titularidade do cliente na POC.
 
 | Operação | Roles |
 |---|---|
@@ -91,7 +93,7 @@ Exemplo de resposta Java sem token:
 }
 ```
 
-O Swagger Java declara o login com `security: []`, enquanto os recursos protegidos herdam a exigência de Bearer JWT. Os testes conferem essa distinção. A API Python também documenta o schema de Problem Details para seus erros.
+O Swagger Java declara o login com `security: []`, enquanto os recursos protegidos herdam a exigência de Bearer JWT. Os testes conferem essa distinção. A API Python também documenta o schema de Problem Details para seus erros. Telemetria fora dos limites aceitos pelo Python retorna 400 no Java antes da integração; VIN de tipo inválido retorna 422 no Python. Repetir a criação de uma ordem para o mesmo agendamento retorna 409 e mantém a original.
 
 ## Padrões e fontes
 

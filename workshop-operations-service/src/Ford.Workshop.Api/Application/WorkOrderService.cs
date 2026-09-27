@@ -6,6 +6,8 @@ public sealed class WorkOrderService(IWorkOrderRepository repository, IPriorityS
 {
     public async Task<WorkOrderView> CreateAsync(CreateWorkOrder command, CancellationToken cancellationToken)
     {
+        if (await repository.ExistsByAppointmentIdAsync(command.AppointmentId, cancellationToken))
+            throw new WorkOrderConflictException();
         var priority = priorityStrategy.Select(command.RiskLevel, command.VehicleImmobilized);
         var entity = WorkOrder.Create(command.AppointmentId, command.Vin, command.Description, priority, timeProvider.GetUtcNow());
         await repository.AddAsync(entity, cancellationToken);
@@ -30,6 +32,8 @@ public sealed class WorkOrderService(IWorkOrderRepository repository, IPriorityS
 
 public sealed class WorkOrderNotFoundException(Guid id) : Exception($"Work order not found: {id}");
 
+public sealed class WorkOrderConflictException() : Exception("Appointment already has a work order");
+
 public sealed record CreateWorkOrder(Guid AppointmentId, string Vin, string Description, string RiskLevel, bool VehicleImmobilized);
 
 public sealed record WorkOrderView(Guid Id, Guid AppointmentId, string Vin, string Description, WorkOrderPriority Priority, WorkOrderStatus Status, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)
@@ -37,4 +41,3 @@ public sealed record WorkOrderView(Guid Id, Guid AppointmentId, string Vin, stri
     public static WorkOrderView From(WorkOrder item) => new(
         item.Id, item.AppointmentId, item.Vin, item.Description, item.Priority, item.Status, item.CreatedAt, item.UpdatedAt);
 }
-

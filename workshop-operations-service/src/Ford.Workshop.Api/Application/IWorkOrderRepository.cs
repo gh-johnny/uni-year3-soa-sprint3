@@ -6,6 +6,6 @@ public interface IWorkOrderRepository
 {
     Task AddAsync(WorkOrder workOrder, CancellationToken cancellationToken);
     Task<WorkOrder?> FindAsync(Guid id, CancellationToken cancellationToken);
+    Task<bool> ExistsByAppointmentIdAsync(Guid appointmentId, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
-
